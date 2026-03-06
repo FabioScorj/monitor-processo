@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout repositorio
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_TOKEN }}
 
       - name: Configurar Python
         uses: actions/setup-python@v5
@@ -24,22 +22,8 @@ jobs:
       - name: Instalar dependencias
         run: pip install requests beautifulsoup4
 
-      - name: Restaurar hash salvo
-        uses: actions/cache@v4
-        with:
-          path: last_hash.txt
-          key: last-hash-${{ github.run_id }}
-          restore-keys: last-hash-
-
       - name: Rodar monitor
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python monitor.py
-
-      - name: Salvar novo hash
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: last_hash.txt
-          key: last-hash-${{ github.run_id }}
