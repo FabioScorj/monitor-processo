@@ -6,16 +6,43 @@ import requests
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
+GITHUB_TOKEN = os.environ["GH_TOKEN"]
+REPO = "FabioScorj/monitor-processo"
 HASH_FILE = "last_hash.txt"
 URL = "https://sicop.sistemas.mpba.mp.br/Modulos/Consulta/Processo.aspx?L0QifJI5OZay/N8MYuNlm7GOhf3NBvJxPHjDdi6yVUmSr7RNnASmfg=="
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, json={"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"})
+
+def get_hash_from_github():
+    """Lê o hash salvo diretamente do repositório GitHub"""
+    url = f"https://api.github.com/repos/{REPO}/contents/{HASH_FILE}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        import base64
+        data = response.json()
+        content = base64.b64decode(data["content"]).decode("utf-8").strip()
+        return content, data["sha"]
+    return None, None
+
+def save_hash_to_github(new_hash, sha=None):
+    """Salva o hash no repositório GitHub"""
+    import base64
+    url = f"https://api.github.com/repos/{REPO}/contents/{HASH_FILE}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    content = base64.b64encode(new_hash.encode("utf-8")).decode("utf-8")
+    payload = {
+        "message": "Atualiza hash do monitoramento",
+        "content": content,
+    }
+    if sha:
+        payload["sha"] = sha
+    requests.put(url, json=payload, headers=headers)
 
 def get_page_content():
     options = Options()
@@ -25,7 +52,6 @@ def get_page_content():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-
     driver = webdriver.Chrome(options=options)
     try:
         driver.get(URL)
@@ -38,16 +64,6 @@ def get_page_content():
 
 def get_hash(text):
     return hashlib.md5(text.encode("utf-8")).hexdigest()
-
-def load_last_hash():
-    if os.path.exists(HASH_FILE):
-        with open(HASH_FILE, "r") as f:
-            return f.read().strip()
-    return None
-
-def save_hash(h):
-    with open(HASH_FILE, "w") as f:
-        f.write(h)
 
 def extract_last_date(html):
     dates = re.findall(r'\d{2}/\d{2}/\d{4}', html)
@@ -64,11 +80,11 @@ def main():
         return
 
     current_hash = get_hash(content)
-    last_hash = load_last_hash()
+    last_hash, sha = get_hash_from_github()
     last_date = extract_last_date(raw_html)
 
     if last_hash is None:
-        save_hash(current_hash)
+        save_hash_to_github(current_hash)
         send_telegram(
             f"✅ <b>Monitoramento iniciado!</b>\n\n"
             f"📋 Processo SICOP MP-BA\n"
@@ -76,7 +92,7 @@ def main():
             f"🕐 Verificacoes: 13h e 17h"
         )
     elif current_hash != last_hash:
-        save_hash(current_hash)
+        save_hash_to_github(current_hash, sha)
         send_telegram(
             f"🔔 <b>ATUALIZACAO DETECTADA!</b>\n\n"
             f"📋 Processo SICOP MP-BA foi atualizado!\n"
