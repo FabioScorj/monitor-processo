@@ -3,7 +3,7 @@ import os
 import re
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
@@ -14,12 +14,16 @@ REPO = "FabioScorj/monitor-processo"
 HASH_FILE = "last_hash.txt"
 URL = "https://sicop.sistemas.mpba.mp.br/Modulos/Consulta/Processo.aspx?L0QifJI5OZay/N8MYuNlm7GOhf3NBvJxPHjDdi6yVUmSr7RNnASmfg=="
 
+BRT = timezone(timedelta(hours=-3))
+
+def now_brt():
+    return datetime.now(BRT).strftime("%d/%m/%Y %H:%M")
+
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, json={"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"})
 
 def get_hash_from_github():
-    """Lê o hash salvo diretamente do repositório GitHub"""
     url = f"https://api.github.com/repos/{REPO}/contents/{HASH_FILE}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     response = requests.get(url, headers=headers)
@@ -31,15 +35,11 @@ def get_hash_from_github():
     return None, None
 
 def save_hash_to_github(new_hash, sha=None):
-    """Salva o hash no repositório GitHub"""
     import base64
     url = f"https://api.github.com/repos/{REPO}/contents/{HASH_FILE}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     content = base64.b64encode(new_hash.encode("utf-8")).decode("utf-8")
-    payload = {
-        "message": "Atualiza hash do monitoramento",
-        "content": content,
-    }
+    payload = {"message": "Atualiza hash do monitoramento", "content": content}
     if sha:
         payload["sha"] = sha
     requests.put(url, json=payload, headers=headers)
@@ -70,7 +70,7 @@ def extract_last_date(html):
     return dates[-1] if dates else "data nao encontrada"
 
 def main():
-    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now = now_brt()
     print(f"[{now}] Verificando...")
 
     try:
@@ -89,7 +89,8 @@ def main():
             f"✅ <b>Monitoramento iniciado!</b>\n\n"
             f"📋 Processo SICOP MP-BA\n"
             f"📅 Ultima data encontrada: {last_date}\n"
-            f"🕐 Verificacoes: 13h e 17h"
+            f"🕐 Verificacoes automaticas configuradas\n\n"
+            f"Voce sera notificado se houver atualizacoes."
         )
     elif current_hash != last_hash:
         save_hash_to_github(current_hash, sha)
@@ -97,14 +98,14 @@ def main():
             f"🔔 <b>ATUALIZACAO DETECTADA!</b>\n\n"
             f"📋 Processo SICOP MP-BA foi atualizado!\n"
             f"📅 Ultima data na pagina: {last_date}\n"
-            f"🕐 Detectado em: {now}"
+            f"🕐 Detectado em: {now} (Brasilia)"
         )
     else:
         send_telegram(
             f"ℹ️ <b>Sem atualizacoes</b>\n\n"
             f"📋 Processo SICOP MP-BA\n"
             f"📅 Ultima data: {last_date}\n"
-            f"🕐 Verificado em: {now}"
+            f"🕐 Verificado em: {now} (Brasilia)"
         )
 
 if __name__ == "__main__":
