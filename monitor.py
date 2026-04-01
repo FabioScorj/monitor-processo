@@ -87,7 +87,7 @@ def main():
         save_hash_to_github(current_hash)
         send_telegram(
             f"✅ <b>Monitoramento iniciado!</b>\n\n"
-            f"📋 Processo SICOP MP-BA\n"
+            f"📋 Processo EMPÓRIO\n"
             f"📅 Ultima data encontrada: {last_date}\n"
             f"🕐 Verificacoes automaticas configuradas\n\n"
             f"Voce sera notificado se houver atualizacoes."
@@ -96,14 +96,14 @@ def main():
         save_hash_to_github(current_hash, sha)
         send_telegram(
             f"🔔 <b>ATUALIZACAO DETECTADA!</b>\n\n"
-            f"📋 Processo SICOP MP-BA foi atualizado!\n"
+            f"📋 Processo EMPÓRIO foi atualizado!\n"
             f"📅 Ultima data na pagina: {last_date}\n"
             f"🕐 Detectado em: {now} (Brasilia)"
         )
     else:
         send_telegram(
             f"ℹ️ <b>Sem atualizacoes</b>\n\n"
-            f"📋 Processo SICOP MP-BA\n"
+            f"📋 Processo EMPÓRIO\n"
             f"📅 Ultima data: {last_date}\n"
             f"🕐 Verificado em: {now} (Brasilia)"
         )
