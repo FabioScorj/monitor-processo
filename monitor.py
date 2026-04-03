@@ -19,6 +19,25 @@ BRT = timezone(timedelta(hours=-3))
 def now_brt():
     return datetime.now(BRT).strftime("%d/%m/%Y %H:%M")
 
+def is_business_day():
+    today = datetime.now(BRT)
+    if today.weekday() >= 5:
+        return False
+    year = today.year
+    date_str = today.strftime("%Y-%m-%d")
+    try:
+        resp = requests.get(
+            f"https://brasilapi.com.br/api/feriados/v1/{year}",
+            timeout=5
+        )
+        if resp.status_code == 200:
+            feriados = [f["date"] for f in resp.json()]
+            if date_str in feriados:
+                return False
+    except Exception:
+        pass
+    return True
+
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, json={"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"})
@@ -71,6 +90,11 @@ def extract_last_date(html):
 
 def main():
     now = now_brt()
+
+    if not is_business_day():
+        print(f"[{now}] Fim de semana ou feriado nacional. Encerrando sem verificacao.")
+        return
+
     print(f"[{now}] Verificando...")
 
     try:
